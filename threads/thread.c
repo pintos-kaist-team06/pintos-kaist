@@ -103,11 +103,13 @@ void thread_init(void) {
     lgdt(&gdt_ds);
 
     /* Init the globla thread context */
+    // ready_list , destruction_list 초기화
     lock_init(&tid_lock);
     list_init(&ready_list);
     list_init(&destruction_req);
 
     /* Set up a thread structure for the running thread. */
+    // stack의 가장 첫 부분에 main thread 만듦
     initial_thread = running_thread();
     init_thread(initial_thread, "main", PRI_DEFAULT);
     initial_thread->status = THREAD_RUNNING;
@@ -134,6 +136,7 @@ void thread_start(void) {
 void thread_tick(void) {
     struct thread *t = thread_current();
 
+    // 전역변수 tick들 ++, ticks++
     /* Update statistics. */
     if (t == idle_thread)
         idle_ticks++;
@@ -145,6 +148,7 @@ void thread_tick(void) {
         kernel_ticks++;
 
     /* Enforce preemption. */
+    // tick>=4면 thread switching(time slicing)
     if (++thread_ticks >= TIME_SLICE)
         intr_yield_on_return();
 }
@@ -207,10 +211,15 @@ tid_t thread_create(const char *name, int priority, thread_func *function, void 
    This function must be called with interrupts turned off.  It
    is usually a better idea to use one of the synchronization
    primitives in synch.h. */
+// run 도중 event만나면 wait(put in waiters_list)
 void thread_block(void) {
     ASSERT(!intr_context());
+
+    // 외부 intr때문에 block된거니까 어차피 off라서 ..
     ASSERT(intr_get_level() == INTR_OFF);
     thread_current()->status = THREAD_BLOCKED;
+
+    // 다음 thread running으로
     schedule();
 }
 
@@ -286,6 +295,8 @@ void thread_yield(void) {
     ASSERT(!intr_context());
 
     old_level = intr_disable();
+
+    // idle thread 아니면 ready_list에 넣고 ready
     if (curr != idle_thread)
         list_push_back(&ready_list, &curr->elem);
     do_schedule(THREAD_READY);
@@ -390,6 +401,7 @@ static void init_thread(struct thread *t, const char *name, int priority) {
    empty.  (If the running thread can continue running, then it
    will be in the run queue.)  If the run queue is empty, return
    idle_thread. */
+// 조건 골라서 ready시킬 수 있겠는데
 static struct thread *next_thread_to_run(void) {
     if (list_empty(&ready_list))
         return idle_thread;
@@ -506,12 +518,19 @@ static void do_schedule(int status) {
         struct thread *victim = list_entry(list_pop_front(&destruction_req), struct thread, elem);
         palloc_free_page(victim);
     }
+
+    // 현재 thread 상태 바꿈
     thread_current()->status = status;
+
+    // 현재 thread와 다음 thread context switching
     schedule();
 }
 
+// RUN할 스레드 찾고 Switching
 static void schedule(void) {
     struct thread *curr = running_thread();
+
+    // 이거 무조건 next가아니고 조건달수있음
     struct thread *next = next_thread_to_run();
 
     ASSERT(intr_get_level() == INTR_OFF);
