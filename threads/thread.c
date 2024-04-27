@@ -30,6 +30,9 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+// timer_sleep용 list
+struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -104,8 +107,10 @@ void thread_init(void) {
 
     /* Init the globla thread context */
     // ready_list , destruction_list 초기화
+    // sleep_list 초기화
     lock_init(&tid_lock);
     list_init(&ready_list);
+    list_init(&sleep_list);
     list_init(&destruction_req);
 
     /* Set up a thread structure for the running thread. */

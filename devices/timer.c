@@ -87,13 +87,32 @@ int64_t timer_elapsed(int64_t then) {
     return timer_ticks() - then;
 }
 
+// tests/internal/list.c line:78 참조
+static bool sleepless(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED) {
+    const struct thread *a = list_entry(a_, struct thread, elem);
+    const struct thread *b = list_entry(b_, struct thread, elem);
+
+    return a->sleep_time < b->sleep_time;
+}
 /* Suspends execution for approximately TICKS timer ticks. */
+extern struct list sleep_list;
 void timer_sleep(int64_t ticks) {
     int64_t start = timer_ticks();
+    struct thread *t;
+    enum intr_level old_level;
 
     ASSERT(intr_get_level() == INTR_ON);
-    while (timer_elapsed(start) < ticks)
-        thread_yield();
+    if (ticks < 0)
+        return;
+
+    old_level = intr_disable();
+
+    t = thread_current();
+    t->sleep_time = start + ticks;
+    list_insert_ordered(&sleep_list, &t->elem, sleepless, NULL);
+
+    thread_block();
+    intr_set_level(old_level);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -118,8 +137,17 @@ void timer_print_stats(void) {
 
 /* Timer interrupt handler. */
 static void timer_interrupt(struct intr_frame *args UNUSED) {
+    struct thread *t;
     ticks++;
     thread_tick();
+
+    while (!list_empty(&sleep_list)) {
+        t = list_entry(list_front(&sleep_list), struct thread, elem);
+        if (t->sleep_time <= ticks)
+            thread_unblock(t);
+        else
+            break;
+    }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

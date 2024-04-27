@@ -14,8 +14,8 @@
 enum thread_status {
     THREAD_RUNNING, /* Running thread. */
 
+    THREAD_READY, /* Not running but ready to run. */
     // ready_list에서 대기중, 스케쥴링 거침
-    THREAD_READY,   /* Not running but ready to run. */
     THREAD_BLOCKED, /* Waiting for an event to trigger. */
     THREAD_DYING    /* About to be destroyed. */
 };
@@ -98,6 +98,7 @@ struct thread {
     char name[16];             /* Name (for debugging purposes). */
     int priority;              /* Priority.(0~63) */
 
+    int64_t sleep_time;
     /* Shared between thread.c and synch.c. */
     // 리스트 안에서 pointer처럼 사용
     struct list_elem elem; /* List element. */
