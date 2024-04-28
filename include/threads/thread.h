@@ -123,6 +123,9 @@ void thread_print_stats(void);
 typedef void thread_func(void *aux);
 tid_t thread_create(const char *name, int priority, thread_func *, void *);
 
+bool thread_wakeup_tick_asc(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
+void thread_sleep(int64_t ticks);
+
 void thread_block(void);
 void thread_unblock(struct thread *);
 

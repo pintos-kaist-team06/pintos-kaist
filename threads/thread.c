@@ -205,6 +205,27 @@ tid_t thread_create(const char *name, int priority, thread_func *function, void 
     return tid;
 }
 
+bool thread_wakeup_tick_asc(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED) {
+    struct thread *a = list_entry(a_, struct thread, elem);
+    struct thread *b = list_entry(b_, struct thread, elem);
+
+    return a->wakeup_tick < b->wakeup_tick;
+}
+
+void thread_sleep(int64_t ticks) {
+    struct thread *curr = thread_current();
+    enum intr_level old_level;
+
+    old_level = intr_disable();
+    ASSERT(curr != idle_thread);
+
+    curr->wakeup_tick = ticks;
+    list_insert_ordered(&sleep_list, &curr->elem, thread_wakeup_tick_asc, NULL);
+    thread_block();
+
+    intr_set_level(old_level);
+}
+
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
 
