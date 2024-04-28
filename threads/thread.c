@@ -227,19 +227,18 @@ void thread_sleep(int64_t ticks) {
 }
 
 void thread_awake(int64_t ticks) {
-    struct list_elem *curr = list_begin(&sleep_list);
     enum intr_level old_level = intr_disable();
+    struct list_elem *curr_elem = list_begin(&sleep_list);
 
-    while (curr != list_end(&sleep_list)) {
-        struct thread *t = list_entry(curr, struct thread, elem);
+    while (curr_elem != list_end(&sleep_list)) {
+        struct thread *curr_thread = list_entry(curr_elem, struct thread, elem);
 
-        if (t->wakeup_tick <= ticks) {
-            curr = list_pop_front(&sleep_list);
-            thread_unblock(curr);
+        if (curr_thread->wakeup_tick <= ticks) {
+            curr_elem = list_remove(curr_elem);
+            thread_unblock(curr_thread);
         } else
             break;
     }
-
     intr_set_level(old_level);
 }
 
