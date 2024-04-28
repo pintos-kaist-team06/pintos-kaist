@@ -34,8 +34,7 @@ static void real_time_sleep(int64_t num, int32_t denom);
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
    corresponding interrupt. */
-void timer_init(void) 
-{
+void timer_init(void) {
     /* 8254 input frequency divided by TIMER_FREQ, rounded to
        nearest. */
     uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;
@@ -91,8 +90,8 @@ void timer_sleep(int64_t ticks) {
     int64_t start = timer_ticks();
 
     ASSERT(intr_get_level() == INTR_ON);
-    while (timer_elapsed(start) < ticks)
-        thread_yield();
+    if (timer_elapsed(start) < ticks)
+        thread_sleep(start + ticks);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
