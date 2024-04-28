@@ -11,6 +11,7 @@
         "intrinsic.h": "c",
         "string.h": "c",
         "stdio.h": "c",
-        "process.h": "c"
+        "process.h": "c",
+        "list.h": "c"
     }
 }
