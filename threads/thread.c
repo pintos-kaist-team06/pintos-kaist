@@ -226,6 +226,23 @@ void thread_sleep(int64_t ticks) {
     intr_set_level(old_level);
 }
 
+void thread_awake(int64_t ticks) {
+    struct list_elem *curr = list_begin(&sleep_list);
+    enum intr_level old_level = intr_disable();
+
+    while (curr != list_end(&sleep_list)) {
+        struct thread *t = list_entry(curr, struct thread, elem);
+
+        if (t->wakeup_tick <= ticks) {
+            curr = list_pop_front(&sleep_list);
+            thread_unblock(curr);
+        } else
+            break;
+    }
+
+    intr_set_level(old_level);
+}
+
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
 
