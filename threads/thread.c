@@ -275,6 +275,13 @@ void thread_unblock(struct thread *t) {
     intr_set_level(old_level);
 }
 
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+    struct thread *t1 = list_entry(a, struct thread, elem);
+    struct thread *t2 = list_entry(b, struct thread, elem);
+
+    return t1->priority > t2->priority;
+}
+
 /* Returns the name of the running thread. */
 const char *thread_name(void) {
     return thread_current()->name;
