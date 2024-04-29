@@ -340,6 +340,14 @@ void thread_yield(void) {
     intr_set_level(old_level);
 }
 
+void test_max_priority() {
+    struct thread *curr = thread_current();
+    struct thread *high_priority_ready_thread = list_entry(list_front(&ready_list), struct thread, elem);
+    if (curr->priority < high_priority_ready_thread->priority) {
+        thread_yield();
+    }
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority) {
     thread_current()->priority = new_priority;
