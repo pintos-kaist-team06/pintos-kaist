@@ -114,15 +114,15 @@ void sema_up(struct semaphore *sema) {
     intr_set_level(old_level);
 }
 
-bool cmp_sem_priority(struct list_elem *a, struct list_elem *b, void *aux UNUSED) {
+bool cmp_sem_priority(const struct list_elem *a, const struct list_elem *b, void *aux) {
     struct semaphore_elem *a_sema = list_entry(a, struct semaphore_elem, elem);
     struct semaphore_elem *b_sema = list_entry(b, struct semaphore_elem, elem);
 
     struct list *waiters_a = &(a_sema->semaphore.waiters);
     struct list *waiters_b = &(b_sema->semaphore.waiters);
 
-    struct thread *t1 = list_entry(list_begin(&waiters_a), struct thread, elem);
-    struct thread *t2 = list_entry(list_begin(&waiters_b), struct thread, elem);
+    struct thread *t1 = list_entry(list_begin(waiters_a), struct thread, elem);
+    struct thread *t2 = list_entry(list_begin(waiters_b), struct thread, elem);
 
     return t1->priority > t2->priority;
 }
