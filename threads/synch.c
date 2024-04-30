@@ -197,7 +197,7 @@ void lock_acquire(struct lock *lock) {
     if (lock->holder != NULL) {
         curr->wait_on_lock = lock;
         list_insert_ordered(&lock->holder->donations, &curr->donation_elem, cmp_donation_priority, NULL);
-        // TODO: priority donation 수행 구현하기
+        donate_priority();
     }
     sema_down(&lock->semaphore);
     curr->wait_on_lock = NULL;
