@@ -223,6 +223,17 @@ void donate_priority(void) {
     }
 }
 
+void remove_with_lock(struct lock *lock) {
+    struct list_elem *e;
+    struct thread *curr = thread_current();
+
+    for (e = list_begin(&curr->donations); e != list_end(&curr->donations); e = list_next(e)) {
+        struct thread *t = list_entry(e, struct thread, donation_elem);
+        if (t->wait_on_lock == lock)
+            list_remove(&t->donation_elem);
+    }
+}
+
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
    thread.
