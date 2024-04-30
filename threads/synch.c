@@ -193,8 +193,22 @@ void lock_acquire(struct lock *lock) {
     ASSERT(!intr_context());
     ASSERT(!lock_held_by_current_thread(lock));
 
+    struct thread *curr = thread_current();
+    if (lock->holder != NULL) {
+        curr->wait_on_lock = lock;
+        list_insert_ordered(&lock->holder->donations, &curr->donation_elem, cmp_donation_priority, NULL);
+        // TODO: priority donation 수행 구현하기
+    }
     sema_down(&lock->semaphore);
+    curr->wait_on_lock = NULL;
     lock->holder = thread_current();
+}
+
+bool cmp_donation_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+    struct thread *t1 = list_entry(a, struct thread, elem);
+    struct thread *t2 = list_entry(b, struct thread, elem);
+
+    return t1->priority > t2->priority;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
