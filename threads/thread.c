@@ -351,7 +351,7 @@ void test_max_priority() {
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority) {
-    thread_current()->priority = new_priority;
+    thread_current()->init_priority = new_priority;
     refresh_priority();
     test_max_priority();
 }
@@ -457,7 +457,7 @@ static void init_thread(struct thread *t, const char *name, int priority) {
     t->magic = THREAD_MAGIC;
     t->init_priority = priority;
     t->wait_on_lock = NULL;
-    list_init(&(t->donations));
+    list_init(&t->donations);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

@@ -205,8 +205,8 @@ void lock_acquire(struct lock *lock) {
 }
 
 bool cmp_donation_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
-    struct thread *t1 = list_entry(a, struct thread, elem);
-    struct thread *t2 = list_entry(b, struct thread, elem);
+    struct thread *t1 = list_entry(a, struct thread, donation_elem);
+    struct thread *t2 = list_entry(b, struct thread, donation_elem);
 
     return t1->priority > t2->priority;
 }
@@ -217,7 +217,8 @@ void donate_priority(void) {
 
     for (int i = 0; i < 8; i++) {
         if (curr->wait_on_lock == NULL)
-            return holder = curr->wait_on_lock->holder;
+            return;
+        holder = curr->wait_on_lock->holder;
         holder->priority = curr->priority;
         curr = holder;
     }
