@@ -355,6 +355,19 @@ void thread_set_priority(int new_priority) {
     test_max_priority();
 }
 
+void refresh_priority(void) {
+    struct thread *curr = thread_current();
+    curr->priority = curr->init_priority;
+
+    if (!list_empty(&curr->donations)) {
+        list_sort(&curr->donations, cmp_donation_priority, NULL);
+
+        struct thread *front = list_entry(list_front(&curr->donations), struct thread, donation_elem);
+        if (front->priority > curr->priority)
+            curr->priority = front->priority;
+    }
+}
+
 /* Returns the current thread's priority. */
 int thread_get_priority(void) {
     return thread_current()->priority;

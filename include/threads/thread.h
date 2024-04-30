@@ -135,6 +135,7 @@ void thread_unblock(struct thread *);
 
 void donate_priority(void);
 void remove_with_lock(struct lock *lock);
+void refresh_priority(void);
 
 bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 void test_max_priority();
