@@ -133,6 +133,8 @@ void thread_sleep(int64_t ticks);
 void thread_block(void);
 void thread_unblock(struct thread *);
 
+void donate_priority(void);
+
 bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 void test_max_priority();
 

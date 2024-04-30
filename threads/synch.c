@@ -211,6 +211,18 @@ bool cmp_donation_priority(const struct list_elem *a, const struct list_elem *b,
     return t1->priority > t2->priority;
 }
 
+void donate_priority(void) {
+    struct thread *curr = thread_current();
+    struct thread *holder;
+
+    for (int i = 0; i < 8; i++) {
+        if (curr->wait_on_lock == NULL)
+            return holder = curr->wait_on_lock->holder;
+        holder->priority = curr->priority;
+        curr = holder;
+    }
+}
+
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
    thread.
