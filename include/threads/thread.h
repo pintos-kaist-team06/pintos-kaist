@@ -91,9 +91,13 @@ struct thread {
     enum thread_status status; /* Thread state. */
     char name[16];             /* Name (for debugging purposes). */
     int priority;              /* Priority. */
-    int64_t wakeup_tick;       /* 깨어나야 할 tick 디스크립터 필드 추가*/
+    int init_priority;
+    int64_t wakeup_tick; /* 깨어나야 할 tick 디스크립터 필드 추가*/
     /* Shared between thread.c and synch.c. */
     struct list_elem elem; /* List element. */
+    struct lock *wait_on_lock;
+    struct list donations;
+    struct list_elem donation_elem;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -129,7 +133,11 @@ void thread_sleep(int64_t ticks);
 void thread_block(void);
 void thread_unblock(struct thread *);
 
-bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+void donate_priority(void);
+void remove_with_lock(struct lock *lock);
+void refresh_priority(void);
+
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 void test_max_priority();
 
 struct thread *thread_current(void);
