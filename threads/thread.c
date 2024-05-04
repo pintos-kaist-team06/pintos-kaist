@@ -344,7 +344,7 @@ void thread_yield(void) {
 void test_max_priority() {
     struct thread *curr = thread_current();
     struct thread *high_priority_ready_thread = list_entry(list_begin(&ready_list), struct thread, elem);
-    if (curr->priority < high_priority_ready_thread->priority) {
+    if (!intr_context() && curr->priority < high_priority_ready_thread->priority) {
         thread_yield();
     }
 }
@@ -473,10 +473,17 @@ static struct thread *next_thread_to_run(void) {
 }
 
 /* Use iretq to launch the thread */
+/*(%%rsp)는 rsp가 가리키는 메모리 주소의 내용
+ * %%r15는 r15레지스터를 직접 참조*/
+/*ChatGPT
+조교님의 설명이 맞습니다. do_iret 함수 내에서는 인터럽트 프레임(intr_frame)에 저장된 값을 레지스터에 집어넣고, 현재의 스택 포인터(rsp) 값을 적절하게 변환시킵니다. 그 후 iretq
+명령어를 실행하여 하드웨어가 자동으로 인터럽트 프레임에 저장된 RIP, CS, EFLAGS 등의 데이터를 적절한 레지스터에 저장한 후 RIP 레지스터에 저장된 위치로 점프합니다.*/
 void do_iret(struct intr_frame *tf) {
     __asm __volatile(
-        "movq %0, %%rsp\n"
-        "movq 0(%%rsp),%%r15\n"
+        "movq %0, %%rsp\n"  // tf의 주소로 rsp 옮김
+
+        "movq 0(%%rsp),%%r15\n"  // 인터럽트 시점의 레지스터 값 복원
+                                 // rsp위치의 메모리주소에서 q(8Byte)만큼 r15에 옮김
         "movq 8(%%rsp),%%r14\n"
         "movq 16(%%rsp),%%r13\n"
         "movq 24(%%rsp),%%r12\n"
@@ -492,10 +499,12 @@ void do_iret(struct intr_frame *tf) {
         "movq 104(%%rsp),%%rbx\n"
         "movq 112(%%rsp),%%rax\n"
         "addq $120,%%rsp\n"
-        "movw 8(%%rsp),%%ds\n"
+
+        "movw 8(%%rsp),%%ds\n"  // 데이터 세그먼트 복원
         "movw (%%rsp),%%es\n"
+
         "addq $32, %%rsp\n"
-        "iretq"
+        "iretq"  // 스택에서 rip, cs, eflags, rsp, ss를 팝, rip에서 다시 프로세서실행
         :
         : "g"((uint64_t)tf)
         : "memory");

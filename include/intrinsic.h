@@ -112,6 +112,7 @@ static __inline uint64_t rrsp(void) {
 	__asm __volatile("movq %%rsp,%0" : "=r" (val));
 	return val;
 }
+
 __attribute__((always_inline))
 static __inline uint64_t rcr2(void) {
 	uint64_t val;

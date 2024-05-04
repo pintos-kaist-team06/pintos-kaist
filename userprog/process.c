@@ -153,11 +153,11 @@ static void __do_fork(void *aux) {
 error:
     thread_exit();
 }
-
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
+
 int process_exec(void *f_name) {
-    char *file_name = f_name;  // 형변환 왜해
+    char *file_name = f_name;  // int로 들어와도 char로 바꿔줌, f_name[0]이 ㄹㅇfilename
     bool success;
 
     /* We cannot use the intr_frame in the thread structure.
@@ -177,12 +177,8 @@ int process_exec(void *f_name) {
     /* We first kill the current context */
     process_cleanup();
 
-    // char *argv[128];
-    // int argc = 0;
-
-    // argument_parse(*file_name, &argc, argv);
-
     /* And then load the binary */
+    // rrsp()로 현재 rsp 위치 알아내기 가 능
     success = load(file_name, &_if);
 
     /* If load failed, quit. */
@@ -193,17 +189,6 @@ int process_exec(void *f_name) {
     /* Start switched process. */
     do_iret(&_if);
     NOT_REACHED();
-}
-
-void argument_parse(char *file_name, int *argc, char **argv) {
-    char *token;
-    int count = 0;
-    char *save_ptr;
-    while (token != NULL) {
-        argv[count++] = token;
-        token = strtok_r(file_name, " ", &save_ptr);
-    }
-    *argc = count;
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -219,6 +204,7 @@ int process_wait(tid_t child_tid UNUSED) {
     /* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
      * XXX:       to add infinite loop here before
      * XXX:       implementing the process_wait. */
+    timer_sleep(150);
     // while (1) {
     // }
     return -1;
@@ -333,13 +319,30 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage, uint32_t 
  * and its initial stack pointer into *RSP.
  * Returns true if successful, false otherwise. */
 static bool load(const char *file_name, struct intr_frame *if_) {
+    int i, j;
     struct thread *t = thread_current();
     struct ELF ehdr;
     struct file *file = NULL;  // 메모리 할당
     off_t file_ofs;
     bool success = false;
-    int i;
 
+    ////////////////////////////////////////////////////////////////
+
+    // /*https://jungle8-bfd2ec4d85f1.herokuapp.com/pages/pintos-questions2.html 의 "별도의 함수로 분리했더니 커널패닉이 나는데 도저히 이유를 잘 모르겠어서 질문을 남깁니다" 참조.
+    /* 파싱부분 코드로 적을땐 ㄱㅊ은데 함수로 빼면 조짐*/
+    char *argv[128];
+    int argc = 0;
+    char *token;
+    char *save_ptr;
+
+    token = strtok_r(file_name, " ", &save_ptr);
+    while (token != NULL) {
+        argv[argc] = token;
+        token = strtok_r(NULL, " ", &save_ptr);
+        argc++;
+    }
+
+    ////////////////////////////////////////////////////////////////
     /* Allocate and activate page directory. */
     t->pml4 = pml4_create();
     if (t->pml4 == NULL)
@@ -360,7 +363,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         goto done;
     }
 
-    /* Read program headers. */
+    /* Read program headers. ㄹㅇ 로드함*/
     file_ofs = ehdr.e_phoff;
     for (i = 0; i < ehdr.e_phnum; i++) {
         struct Phdr phdr;
@@ -414,11 +417,42 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     if (!setup_stack(if_))
         goto done;
 
-    /* Start address. */
-    if_->rip = ehdr.e_entry;
+    /* CHECKED: Your code goes here.
+     * CHECKED: Implement argument passing (see project2/argument_passing.html).*/
+    // printf("인자 갯수  = %d\n", argc);
+    for (j = argc - 1; j >= 0; j--) {
+        size_t len = strlen(argv[j]) + 1;  // 널문자 포함
+        if_->rsp -= len;                   // rsp는 downward
+        memcpy(if_->rsp, argv[j], len);
+        argv[j] = if_->rsp;
+        // printf("원본 인자는 = %s\n", argv[j]);
+    }
 
-    /* TODO: Your code goes here.
-     * TODO: Implement argument passing (see project2/argument_passing.html). */
+    if_->rsp = ((uintptr_t)if_->rsp & ~0xF);  // word-align
+
+    if_->rsp -= sizeof(char *);
+
+    /*여기서 스택에 argc, argv 저장*/
+    for (int k = argc - 1; k >= 0; k--) {
+        if_->rsp -= sizeof(char *);    // 포인터 크기만큼 스택 포인터 감소
+        *(char **)if_->rsp = argv[k];  // argv[k] 주소를 스택에 저장
+        // printf("스택포인터 주소는 %p\n", if_->rsp);        // 스택 포인터 주소 출력
+        // printf("들어간 주소는 %p\n", *(char **)if_->rsp);  // 스택에 저장된 주소 출력
+        // printf("넣는 주소는 %p\n", argv[k]);               // argv[k]의 실제 주소 출력
+    }
+
+    /*GitBook: Point %rsi to argv (the address of argv[0]) and set %rdi to argc.*/
+    if_->R.rdi = argc;
+    if_->R.rsi = if_->rsp;
+
+    if_->rsp -= sizeof(void *);
+    *(void **)if_->rsp = NULL;  // 쓰레기
+
+    // not sel t's name
+    hex_dump(if_->rsp, if_->rsp, USER_STACK - if_->rsp, 1);
+
+    /* Start address. ELF 파일의 시작 주소인 ehdr.e_entry를 RIP에 저장 이후 스레드가 시작될 때 이 주소에서 실행이 시작*/
+    if_->rip = ehdr.e_entry;
 
     success = true;
 
