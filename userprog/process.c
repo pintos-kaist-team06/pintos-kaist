@@ -448,7 +448,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     if_->rsp -= sizeof(void *);
     *(void **)if_->rsp = NULL;  // 쓰레기
 
-    // not sel t's name
+    // yet sel t's name
     hex_dump(if_->rsp, if_->rsp, USER_STACK - if_->rsp, 1);
 
     /* Start address. ELF 파일의 시작 주소인 ehdr.e_entry를 RIP에 저장 이후 스레드가 시작될 때 이 주소에서 실행이 시작*/

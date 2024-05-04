@@ -39,12 +39,32 @@ void syscall_init(void) {
 /* The main system call interface */
 void syscall_handler(struct intr_frame *f UNUSED) {
     // TODO: Your implementation goes here.
-    printf("system call!\n");
-    thread_exit();
+    switch (f->R.rax) {
+        case SYS_HALT:     /* Halt the operating system. */
+        case SYS_EXIT:     /* Terminate this process. */
+        case SYS_FORK:     /* Clone current process. */
+        case SYS_EXEC:     /* Switch current process. */
+        case SYS_WAIT:     /* Wait for a child process to die. */
+        case SYS_CREATE:   /* Create a file. */
+        case SYS_REMOVE:   /* Delete a file. */
+        case SYS_OPEN:     /* Open a file. */
+        case SYS_FILESIZE: /* Obtain a file's size. */
+        case SYS_READ:     /* Read from a file. */
+        case SYS_WRITE:    /* Write to a file. */
+        case SYS_SEEK:     /* Change position in a file. */
+        case SYS_TELL:     /* Report current position in a file. */
+        case SYS_CLOSE:    /* Close a file. */
+        default:
+            printf("system call!\n");
+            thread_exit();
+            break;
+    }
 }
 
-/*유저 영역을 벗어난 영역일 경우 프로세스 종료(exit(-1)) */
+/*유저 영역을벗어난 영역일 경우 프로세스 종료(exit(-1)) */
 void check_address(void *addr) {
-    if (is_kernel_vaddr(addr) || addr < thread_current()->magic)
-        thread_exit();
+    if (is_kernel_vaddr(addr)) {
+        // exit(-1);
+        process_exit();
+    }
 }

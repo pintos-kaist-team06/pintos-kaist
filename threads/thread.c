@@ -228,7 +228,6 @@ void thread_sleep(int64_t ticks) {
 }
 
 void thread_awake(int64_t ticks) {
-    enum intr_level old_level = intr_disable();
     struct list_elem *curr_elem = list_begin(&sleep_list);
 
     while (curr_elem != list_end(&sleep_list)) {
@@ -240,7 +239,6 @@ void thread_awake(int64_t ticks) {
         } else
             break;
     }
-    intr_set_level(old_level);
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
