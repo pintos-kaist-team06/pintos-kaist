@@ -330,7 +330,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
     // /*https://jungle8-bfd2ec4d85f1.herokuapp.com/pages/pintos-questions2.html 의 "별도의 함수로 분리했더니 커널패닉이 나는데 도저히 이유를 잘 모르겠어서 질문을 남깁니다" 참조.
     /* 파싱부분 코드로 적을땐 ㄱㅊ은데 함수로 빼면 조짐*/
-    char *argv[128];
+    char *argv[LOADER_ARGS_LEN / 2 + 1];  // init.c/read_command_line 참조
     int argc = 0;
     char *token;
     char *save_ptr;
