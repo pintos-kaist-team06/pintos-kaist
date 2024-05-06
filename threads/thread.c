@@ -344,7 +344,7 @@ void thread_yield(void) {
 void test_max_priority() {
     struct thread *curr = thread_current();
     struct thread *high_priority_ready_thread = list_entry(list_begin(&ready_list), struct thread, elem);
-    if (curr->priority < high_priority_ready_thread->priority) {
+    if (!intr_context() && curr->priority < high_priority_ready_thread->priority) {
         thread_yield();
     }
 }
