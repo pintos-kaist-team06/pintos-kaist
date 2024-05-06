@@ -12,6 +12,7 @@
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
+void check_address(void *uaddr);
 
 /* System call.
  *
@@ -40,5 +41,17 @@ void syscall_init(void) {
 void syscall_handler(struct intr_frame *f UNUSED) {
     // TODO: Your implementation goes here.
     printf("system call!\n");
+    thread_exit();
+}
+
+void check_address(void *uaddr) {
+    struct thread *cur = thread_current();
+    if (uaddr == NULL || is_kernel_vaddr(uaddr) || pml4_get_page(cur->pml4, uaddr) == NULL) {
+        exit(-1);
+    }
+}
+
+void exit(int status) {
+    printf("%s: exit(%d)\n", thread_name(), status);
     thread_exit();
 }
