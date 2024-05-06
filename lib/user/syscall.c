@@ -128,8 +128,8 @@ bool chdir(const char *dir) {
 bool mkdir(const char *dir) {
     return syscall1(SYS_MKDIR, dir);
 }
-
-bool readdir(int fd, char name[READDIR_MAX_LEN + 1]) {
+// include/lib/user/syscall.h의 READDIR_MAX_LEN = 14 참조
+bool readdir(int fd, char name[14 + 1]) {
     return syscall2(SYS_READDIR, fd, name);
 }
 

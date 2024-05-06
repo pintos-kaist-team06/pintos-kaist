@@ -37,34 +37,51 @@ void syscall_init(void) {
 }
 
 /* The main system call interface */
+// 누구의 f지??
 void syscall_handler(struct intr_frame *f UNUSED) {
+    /*유저 영역을벗어난 영역일 경우 프로세스 종료(exit(-1)) */
+    if (!is_kernel_vaddr(f->rsp) || thread_current()->pml4 < f->rsp)
+        exit(-1);
+
     // TODO: Your implementation goes here.
     switch (f->R.rax) {
-        case SYS_HALT:     /* Halt the operating system. */
-        case SYS_EXIT:     /* Terminate this process. */
-        case SYS_FORK:     /* Clone current process. */
-        case SYS_EXEC:     /* Switch current process. */
-        case SYS_WAIT:     /* Wait for a child process to die. */
-        case SYS_CREATE:   /* Create a file. */
-        case SYS_REMOVE:   /* Delete a file. */
-        case SYS_OPEN:     /* Open a file. */
-        case SYS_FILESIZE: /* Obtain a file's size. */
-        case SYS_READ:     /* Read from a file. */
-        case SYS_WRITE:    /* Write to a file. */
-        case SYS_SEEK:     /* Change position in a file. */
-        case SYS_TELL:     /* Report current position in a file. */
-        case SYS_CLOSE:    /* Close a file. */
+        case SYS_HALT: /* Halt the operating system. */
+            power_off();
+
+        case SYS_EXIT: /* Terminate this process. */
+            printf(":124124124 333exit(%d)\n ", thread_current()->tf.R.rdi);
+
+            exit(f->R.rdi);
+
+        case SYS_FORK: /* Clone current process. */
+        case SYS_EXEC: /* Switch current process. */
+            /*현재의 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경됩니다. 이때 주어진 인자들을 전달합니다. 성공적으로 진행된다면 어떤 것도 반환하지 않습니다.
+             * 만약 프로그램이 이 프로세스를 로드하지 못하거나 다른 이유로 돌리지 못하게 되면 exit state -1을 반환하며 프로세스가 종료됩니다. 이 함수는 exec 함수를 호출한 쓰레드의
+             * 이름은 바꾸지 않습니다. file descriptor는 exec 함수 호출 시에 열린 상태로 있다는 것을 알아두세요. */
+
+        case SYS_WAIT:   /* Wait for a child process to die. */
+        case SYS_CREATE: /* Create a file. */
+            f->R.rax = filesys_create(*(char *)f->R.rdi, f->R.rsi);
+
+        case SYS_REMOVE: /* Delete a file. */
+            f->R.rax = filesys_remove(*(char *)f->R.rdi);
+
+        case SYS_OPEN:               /* Open a file. */
+        case SYS_FILESIZE:           /* Obtain a file's size. */
+        case SYS_READ:               /* Read from a file. */
+        case SYS_WRITE:              /* Write to a file. */
+            printf("%s", f->R.rdi);  // 가짜값
+
+        case SYS_SEEK:  /* Change position in a file. */
+        case SYS_TELL:  /* Report current position in a file. */
+        case SYS_CLOSE: /* Close a file. */
         default:
             printf("system call!\n");
-            thread_exit();
-            break;
+            exit(-1);
     }
 }
 
-/*유저 영역을벗어난 영역일 경우 프로세스 종료(exit(-1)) */
-void check_address(void *addr) {
-    if (is_kernel_vaddr(addr)) {
-        // exit(-1);
-        process_exit();
-    }
+void exit(int status) {
+    printf("%s: exit(%d)\n", thread_current()->name, status);
+    thread_exit();
 }

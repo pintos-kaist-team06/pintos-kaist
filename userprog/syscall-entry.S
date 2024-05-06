@@ -1,15 +1,15 @@
 #include "threads/loader.h"
-
+/*  */
 .text
 .globl syscall_entry
 .type syscall_entry, @function
 syscall_entry:
 	movq %rbx, temp1(%rip)
-	movq %r12, temp2(%rip)     /* callee saved registers */
-	movq %rsp, %rbx            /* Store(stash) userland rsp    */
+	movq %r12, temp2(%rip)      /* callee saved registers */
+	movq %rsp, %rbx             /* Store(stash) userland rsp    */
 	movabs $tss, %r12			/*load Task State Segment to r12 */
 	movq (%r12), %r12			/*read Kernel StackPointer at TSS */
-	movq 4(%r12), %rsp         /* Read ring0 rsp from the tss , 커널 스택 영역으로 진입*/
+	movq 4(%r12), %rsp          /* Read ring0 rsp from the tss , 커널 스택 영역으로 진입*/
 	/* Now we are in the kernel stack */
 
 	/* push to stack seg-registers value in userland*/
@@ -45,7 +45,10 @@ syscall_entry:
 
 check_intr:
 	btsq $9, %r11          /* Check whether we recover the interrupt */
-	jnb no_sti			   /*no_sti는 직전에 btsq $9, %r11 명령을 통해 인터럽트 플래그를 검사하고, 조건에 따라 인터럽트를 설정(sti)할지 말지 결정한 후의 	경로입니다. 여기서 jnb no_sti (Jump if Not Below) 명령은 r11 레지스터의 9번째 비트가 설정되어 있지 않다면 no_sti 라벨로 점프합니다. 즉, 인터럽트를 다시 활성화하지 않고 시스템 호출 처리를 계속합니다.*/
+	jnb no_sti			   /*no_sti는 직전에 btsq $9, %r11 명령을 통해 인터럽트 플래그를 검사하고, 
+							조건에 따라 인터럽트를 설정(sti)할지 말지 결정한 후의 	경로입니다. 
+							여기서 jnb no_sti (Jump if Not Below) 명령은 r11 레지스터의 9번째 비트가 설정되어 있지 않다면 no_sti 라벨로 점프합니다. 
+							즉, 인터럽트를 다시 활성화하지 않고 시스템 호출 처리를 계속합니다.*/
 
 	sti                    /* restore interrupt */
 

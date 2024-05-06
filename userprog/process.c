@@ -90,7 +90,7 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
 
     /* 1. TODO: If the parent_page is kernel page, then return immediately. */
 
-    /* 2. Resolve VA from the parent's page map level 4. */
+    /* 2. TODO: Resolve VA from the parent's page map level 4. */
     parent_page = pml4_get_page(parent->pml4, va);
 
     /* 3. TODO: Allocate new PAL_USER page for the child and set result to
@@ -100,7 +100,7 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
      *    TODO: check whether parent's page is writable or not (set WRITABLE
      *    TODO: according to the result). */
 
-    /* 5. Add new page to child's page table at address VA with WRITABLE
+    /* 5. TODO: Add new page to child's page table at address VA with WRITABLE
      *    permission. */
     if (!pml4_set_page(current->pml4, va, newpage, writable)) {
         /* 6. TODO: if fail to insert page, do error handling. */
@@ -413,7 +413,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         }
     }
 
-    /* Set up stack. */
+    /* Set up stack. check the stack pointer */
     if (!setup_stack(if_))
         goto done;
 
@@ -446,9 +446,9 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     if_->R.rsi = if_->rsp;
 
     if_->rsp -= sizeof(void *);
-    *(void **)if_->rsp = NULL;  // 쓰레기
+    *(void **)if_->rsp = NULL;  // 어쩔수없이넣었습니다
 
-    // yet sel t's name
+    strlcpy(t->name, argv[0], strlen(argv[0]) + 1);  // t's name
     hex_dump(if_->rsp, if_->rsp, USER_STACK - if_->rsp, 1);
 
     /* Start address. ELF 파일의 시작 주소인 ehdr.e_entry를 RIP에 저장 이후 스레드가 시작될 때 이 주소에서 실행이 시작*/
