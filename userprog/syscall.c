@@ -55,9 +55,8 @@ void syscall_init(void) {
 
 /* The main system call interface */
 void syscall_handler(struct intr_frame *f UNUSED) {
-    check_address(f->R.rax);  // 임시
+    // check_address(f->R.rax);  // 임시
     uint64_t syscall_n = f->R.rax;
-
     switch (syscall_n) {
         case SYS_HALT:
             halt();
@@ -129,6 +128,7 @@ void check_address(void *uaddr) {
 }
 
 void exit(int status) {
+    thread_current()->exit_status = status;
     printf("%s: exit(%d)\n", thread_name(), status);
     thread_exit();
 }
@@ -176,10 +176,12 @@ int open(const char *file) {
 
     lock_acquire(&filesys_lock);
     struct file *f = filesys_open(file);
+
     if (f == NULL) {
         lock_release(&filesys_lock);
         return -1;
     }
+
     int fd = process_add_file(f);
     if (fd == -1)
         file_close(f);

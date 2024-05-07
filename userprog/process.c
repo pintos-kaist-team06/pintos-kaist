@@ -227,6 +227,10 @@ int process_exec(void *f_name) {
     }
 
     argument_stack(parse, count, &_if.rsp);  // 함수 내부에서 parse와 rsp의 값을 직접 변경하기 위해 주소 전달
+
+    _if.R.rdi = count;
+    _if.R.rsi = (char *)_if.rsp + 8;
+
     // hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)_if.rsp, true);
 
     palloc_free_page(file_name);
@@ -298,7 +302,7 @@ void process_exit(void) {
     struct thread *cur = thread_current();
 
     // 1) FDT의 모든 파일을 닫고 메모리를 반환한다.
-    for (int i =3 ; i < FDT_COUNT_LIMIT; i++)
+    for (int i = 2; i < FDT_COUNT_LIMIT; i++)
         close(i);
 
     palloc_free_page(cur->fdt);
@@ -308,7 +312,7 @@ void process_exit(void) {
 
     // 3) 자식이 종료될 때까지 대기하고 있는 부모에게 signal을 보낸다.
     sema_up(&cur->wait_sema);
-    
+
     // 4) 부모의 signal을 기다린다. 대기가 풀리고 나서 do_schedule(THREAD_DYING)이 이어져 다른 스레드가 실행된다.
     sema_down(&cur->exit_sema);
 }
@@ -653,7 +657,7 @@ struct file *process_get_file(int fd) {
 
     /* 파일 디스크립터에 해당하는 파일 객체를 리턴 */
     /* 없을 시 NULL 리턴 */
-    if (fd < 3 || fd >= FDT_COUNT_LIMIT)  // XXX
+    if (fd < 2 || fd >= FDT_COUNT_LIMIT)  // XXX
         return NULL;
     return fdt[fd];
 }
@@ -662,7 +666,7 @@ struct file *process_get_file(int fd) {
 void process_close_file(int fd) {
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
-    if (fd < 3 || fd >= FDT_COUNT_LIMIT)  // XXX
+    if (fd < 2 || fd >= FDT_COUNT_LIMIT)  // XXX
         return NULL;
 
     fdt[fd] = NULL;
