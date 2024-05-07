@@ -118,12 +118,15 @@ struct thread {
     struct list child_list;
     struct list_elem child_elem;
 
-    struct file *running;  
-    
+    struct file *running;
+
     struct file **fdt;
     int next_fd;
+    int exit_status;
 
     struct semaphore load_sema;
+    struct semaphore exit_sema;
+    struct semaphore wait_sema;
 
     unsigned magic; /* Detects stack overflow. */
 };
@@ -153,7 +156,7 @@ void remove_with_lock(struct lock *lock);
 void refresh_priority(void);
 
 bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
-void test_max_priority();
+void test_max_priority(void);
 
 struct thread *thread_current(void);
 tid_t thread_tid(void);

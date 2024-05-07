@@ -220,14 +220,16 @@ int process_exec(void *f_name) {
     /* And then load the binary */
     success = load(file_name, &_if);
 
-    argument_stack(parse, count, &_if.rsp);  // 함수 내부에서 parse와 rsp의 값을 직접 변경하기 위해 주소 전달
-
     /* If load failed, quit. */
-    palloc_free_page(file_name);
-    if (!success)
+    if (!success) {
+        palloc_free_page(file_name);
         return -1;
+    }
 
-    // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, 1);
+    argument_stack(parse, count, &_if.rsp);  // 함수 내부에서 parse와 rsp의 값을 직접 변경하기 위해 주소 전달
+    // hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)_if.rsp, true);
+
+    palloc_free_page(file_name);
 
     /* Start switched process. */
     do_iret(&_if);
@@ -277,24 +279,38 @@ void argument_stack(char **parse, int count, void **rsp)  // 주소를 전달받
  * This function will be implemented in problem 2-2.  For now, it
  * does nothing. */
 int process_wait(tid_t child_tid UNUSED) {
-    /* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
-     * XXX:       to add infinite loop here before
-     * XXX:       implementing the process_wait. */
-    timer_sleep(100);
-    return -1;
+    struct thread *child = get_child_process(child_tid);
+    if (child == NULL)  // 1) 자식이 아니면 -1을 반환한다.
+        return -1;
+
+    // 2) 자식이 종료될 때까지 대기한다. (process_exit에서 자식이 종료될 때 sema_up 해줄 것이다.)
+    sema_down(&child->wait_sema);
+    // 3) 자식이 종료됨을 알리는 `wait_sema` signal을 받으면 현재 스레드(부모)의 자식 리스트에서 제거한다.
+    list_remove(&child->child_elem);
+    // 4) 자식이 완전히 종료되고 스케줄링이 이어질 수 있도록 자식에게 signal을 보낸다.
+    sema_up(&child->exit_sema);
+
+    return child->exit_status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
 void process_exit(void) {
-    struct thread *curr = thread_current();
-    /* TODO: Your code goes here.
-     * TODO: Implement process termination message (see
-     * TODO: project2/process_termination.html).
-     * TODO: We recommend you to implement process resource cleanup here. */
+    struct thread *cur = thread_current();
 
-    file_close(curr->running);  // 현재 실행 중인 파일을 닫는다.
+    // 1) FDT의 모든 파일을 닫고 메모리를 반환한다.
+    for (int i =3 ; i < FDT_COUNT_LIMIT; i++)
+        close(i);
+
+    palloc_free_page(cur->fdt);
+    file_close(cur->running);  // 2) 현재 실행 중인 파일도 닫는다.
 
     process_cleanup();
+
+    // 3) 자식이 종료될 때까지 대기하고 있는 부모에게 signal을 보낸다.
+    sema_up(&cur->wait_sema);
+    
+    // 4) 부모의 signal을 기다린다. 대기가 풀리고 나서 do_schedule(THREAD_DYING)이 이어져 다른 스레드가 실행된다.
+    sema_down(&cur->exit_sema);
 }
 
 /* Free the current process's resources. */
