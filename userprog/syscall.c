@@ -17,7 +17,7 @@ void check_address(void *uaddr);
 void halt(void);
 bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
-tid_t fork(const char *thread_name, struct intr_frame *f);
+tid_t fork(const char *thread_name);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 int filesize(int fd);
@@ -66,7 +66,7 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_FORK:
-            f->R.rax = fork(f->R.rdi, f);
+            f->R.rax = fork(f->R.rdi);
             break;
 
         case SYS_EXEC:
@@ -163,7 +163,8 @@ int open(const char *file) {
     return fd;
 }
 
-tid_t fork(const char *thread_name, struct intr_frame *f) {
+tid_t fork(const char *thread_name) {
+    struct intr_frame f = thread_current()->tf;
     return process_fork(thread_name, f);
 }
 
