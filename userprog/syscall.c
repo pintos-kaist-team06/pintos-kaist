@@ -12,6 +12,8 @@
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
+void exit(int status);
+tid_t fork(const char *thread_name, struct intr_frame *f);
 
 /* System call.
  *
@@ -40,7 +42,7 @@ void syscall_init(void) {
 // 누구의 f지??
 void syscall_handler(struct intr_frame *f UNUSED) {
     /*유저 영역을벗어난 영역일 경우 프로세스 종료(exit(-1)) */
-    if (!is_kernel_vaddr(f->rsp) || thread_current()->pml4 < f->rsp)
+    if (is_kernel_vaddr(f->rsp) || thread_current()->pml4 < f->rsp || f->rsp == NULL)
         exit(-1);
 
     // TODO: Your implementation goes here.
@@ -49,11 +51,12 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             power_off();
 
         case SYS_EXIT: /* Terminate this process. */
-            printf(":124124124 333exit(%d)\n ", thread_current()->tf.R.rdi);
-
             exit(f->R.rdi);
 
         case SYS_FORK: /* Clone current process. */
+            // f->R.rax = fork(f->R.rdi, f);
+            // break;
+
         case SYS_EXEC: /* Switch current process. */
             /*현재의 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경됩니다. 이때 주어진 인자들을 전달합니다. 성공적으로 진행된다면 어떤 것도 반환하지 않습니다.
              * 만약 프로그램이 이 프로세스를 로드하지 못하거나 다른 이유로 돌리지 못하게 되면 exit state -1을 반환하며 프로세스가 종료됩니다. 이 함수는 exec 함수를 호출한 쓰레드의
@@ -61,10 +64,10 @@ void syscall_handler(struct intr_frame *f UNUSED) {
 
         case SYS_WAIT:   /* Wait for a child process to die. */
         case SYS_CREATE: /* Create a file. */
-            f->R.rax = filesys_create(*(char *)f->R.rdi, f->R.rsi);
+            f->R.rax = create((f->R.rdi), (f->R.rsi));
 
         case SYS_REMOVE: /* Delete a file. */
-            f->R.rax = filesys_remove(*(char *)f->R.rdi);
+            f->R.rax = remove((f->R.rdi));
 
         case SYS_OPEN:               /* Open a file. */
         case SYS_FILESIZE:           /* Obtain a file's size. */
@@ -84,4 +87,35 @@ void syscall_handler(struct intr_frame *f UNUSED) {
 void exit(int status) {
     printf("%s: exit(%d)\n", thread_current()->name, status);
     thread_exit();
+}
+
+tid_t fork(const char *thread_name, struct intr_frame *f) {
+    return process_fork(thread_name, f);
+}
+void halt(void) {
+}
+int exec(const char *file) {
+}
+int wait(pid_t) {
+}
+bool create(const char *file, unsigned initial_size) {
+    return filesys_create(file, initial_size);
+}
+
+bool remove(const char *file) {
+    return filesys_remove(file);   
+}
+int open(const char *file) {
+}
+int filesize(int fd) {
+}
+int read(int fd, void *buffer, unsigned length) {
+}
+int write(int fd, const void *buffer, unsigned length) {
+}
+void seek(int fd, unsigned position) {
+}
+unsigned tell(int fd) {
+}
+void close(int fd) {
 }

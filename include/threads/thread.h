@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 
+#include "include/threads/synch.h"
 #include "threads/interrupt.h"
 #ifdef VM
 #include "vm/vm.h"
@@ -27,6 +28,8 @@ typedef int tid_t;
 #define PRI_MIN 0      /* Lowest priority. */
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
+
+#define USERPROG
 
 /* A kernel thread or user process.
  *
@@ -110,7 +113,19 @@ struct thread {
 
     /* Owned by thread.c. */
     struct intr_frame tf; /* Information for switching */
-    unsigned magic;       /* Detects stack overflow. */
+
+    unsigned magic; /* Detects stack overflow. */
+
+    /*fork, wait을 위한 요소 추가*/
+
+    struct thread *parent_thread;
+    struct list child_list;
+    struct list_elem child_elem;
+    struct semaphore sema_child_wait;
+
+    int child_success_flag;
+    int child_exit_status;
+    bool is_exit;
 };
 
 /* If false (default), use round-robin scheduler.

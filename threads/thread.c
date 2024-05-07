@@ -199,6 +199,14 @@ tid_t thread_create(const char *name, int priority, thread_func *function, void 
     t->tf.cs = SEL_KCSEG;
     t->tf.eflags = FLAG_IF;
 
+    // 부모 프로세스 디스크립터 포인터 저장
+    t->parent_thread = thread_current();
+
+    // 부모 프로세스의 자식 리스트에 생성된 쓰레드 추가
+    if (t->parent_thread != NULL) {
+        list_push_back(&thread_current()->child_list, &t->child_elem);
+    }
+
     /* Add to run queue. */
     thread_unblock(t);
     test_max_priority();
@@ -456,6 +464,16 @@ static void init_thread(struct thread *t, const char *name, int priority) {
     t->init_priority = priority;
     t->wait_on_lock = NULL;
     list_init(&t->donations);
+
+    list_init(&t->child_list);
+
+    //  세마포어 초기화
+    sema_init(&t->sema_child_wait, 0);  // 자식 세마포어 초기화
+
+    // 각종 플래그 초기화
+    t->child_success_flag = 0;
+    t->child_exit_status = 0;
+    t->is_exit = false;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
