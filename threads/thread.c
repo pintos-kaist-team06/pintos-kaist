@@ -199,8 +199,13 @@ tid_t thread_create(const char *name, int priority, thread_func *function, void 
     t->tf.cs = SEL_KCSEG;
     t->tf.eflags = FLAG_IF;
 
+    /*fork된 자식을 기다리기 위해 만든 리스트*/
     list_push_back(&thread_current()->child_list, &t->child_elem);
     sema_init(&t->load_sema, 0);
+
+    t->fdt = palloc_get_multiple(PAL_ZERO, FDT_PAGES);  // XXX 이해안대
+    if (t->fdt == NULL)
+        return TID_ERROR;
 
     /* Add to run queue. */
     thread_unblock(t);
@@ -458,11 +463,15 @@ static void init_thread(struct thread *t, const char *name, int priority) {
     t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *);
     t->priority = priority;
     t->magic = THREAD_MAGIC;
+
     t->init_priority = priority;
     t->wait_on_lock = NULL;
     list_init(&t->donations);
+
     list_init(&t->child_list);
     sema_init(&t->load_sema, 0);
+
+    t->next_fd = 2;//XXX: 이거 3인가??  
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

@@ -7,6 +7,7 @@
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/loader.h"
+#include "threads/synch.h"
 #include "threads/thread.h"
 #include "userprog/gdt.h"
 
@@ -17,6 +18,8 @@ void halt(void);
 bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
 tid_t fork(const char *thread_name, struct intr_frame *f);
+
+struct lock filesys_lock;
 
 /* System call.
  *
@@ -39,6 +42,7 @@ void syscall_init(void) {
      * until the syscall_entry swaps the userland stack to the kernel
      * mode stack. Therefore, we masked the FLAG_FL. */
     write_msr(MSR_SYSCALL_MASK, FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+    lock_init(&filesys_lock);
 }
 
 /* The main system call interface */
@@ -74,6 +78,7 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_OPEN:
+            f->R.rax = open(f->R.rdi);
             break;
 
         case SYS_FILESIZE:
@@ -128,6 +133,23 @@ bool remove(const char *file) {
     check_address(file);
     bool is_success = filesys_remove(file);
     return is_success;
+}
+
+int open(const char *file) {
+    check_address(file);
+
+    lock_acquire(&filesys_lock);
+    struct file *f = filesys_open(file);
+    if (f == NULL) {
+        lock_release(&filesys_lock);
+        return -1;
+    }
+    int fd = process_add_file(f);
+    if (fd == -1)
+        file_close(f);
+
+    lock_release(&filesys_lock);
+    return fd;
 }
 
 tid_t fork(const char *thread_name, struct intr_frame *f) {

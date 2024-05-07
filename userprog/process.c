@@ -608,6 +608,23 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage, uint32_t 
     return true;
 }
 
+// 파일 객체에 대한 파일 디스크립터를 생성하는 함수
+int process_add_file(struct file *f) {
+    struct thread *curr = thread_current();
+    struct file **fdt = curr->fdt;
+
+    // limit을 넘지 않는 범위 안에서 빈 자리 탐색
+    while (curr->next_fd < FDT_COUNT_LIMIT && fdt[curr->next_fd])
+        curr->next_fd++;
+
+    if (curr->next_fd >= FDT_COUNT_LIMIT)
+        return -1;
+    
+    fdt[curr->next_fd] = f;
+
+    return curr->next_fd;
+}
+
 /* Create a minimal stack by mapping a zeroed page at the USER_STACK */
 static bool setup_stack(struct intr_frame *if_) {
     uint8_t *kpage;
