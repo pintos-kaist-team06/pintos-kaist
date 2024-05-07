@@ -18,6 +18,8 @@ void halt(void);
 bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
 tid_t fork(const char *thread_name, struct intr_frame *f);
+void seek(int fd, unsigned position);
+unsigned tell(int fd);
 
 struct lock filesys_lock;
 
@@ -60,7 +62,7 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_FORK:
-            fork(f->R.rdi, f);
+            f->R.rax = fork(f->R.rdi, f);
             break;
 
         case SYS_EXEC:
@@ -92,9 +94,11 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_SEEK:
+            seek(f->R.rdi, f->R.rsi);
             break;
 
         case SYS_TELL:
+            f->R.rax = tell(f->R.rdi);
             break;
 
         case SYS_CLOSE:
@@ -154,4 +158,20 @@ int open(const char *file) {
 
 tid_t fork(const char *thread_name, struct intr_frame *f) {
     return process_fork(thread_name, f);
+}
+
+void seek(int fd, unsigned position) {
+    struct file *file = process_get_file(fd);
+    if (file == NULL)
+        return -1;
+
+    file_seek(process_get_file(file), position);
+}
+
+unsigned tell(int fd) {
+    struct file *file = process_get_file(fd);
+    if (file == NULL)
+        return -1;
+
+    return file_tell(file);
 }

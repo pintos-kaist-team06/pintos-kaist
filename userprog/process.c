@@ -619,10 +619,22 @@ int process_add_file(struct file *f) {
 
     if (curr->next_fd >= FDT_COUNT_LIMIT)
         return -1;
-    
+
     fdt[curr->next_fd] = f;
 
     return curr->next_fd;
+}
+
+// 파일 객체를 검색하는 함수
+struct file *process_get_file(int fd) {
+    struct thread *curr = thread_current();
+    struct file **fdt = curr->fdt;
+
+    /* 파일 디스크립터에 해당하는 파일 객체를 리턴 */
+    /* 없을 시 NULL 리턴 */
+    if (fd < 2 || fd >= FDT_COUNT_LIMIT)
+        return NULL;
+    return fdt[fd];
 }
 
 /* Create a minimal stack by mapping a zeroed page at the USER_STACK */
