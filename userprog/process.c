@@ -220,46 +220,51 @@ int process_exec(void *f_name) {
     /* And then load the binary */
     success = load(file_name, &_if);
 
-    argument_stack(parse, count, &_if);
+    argument_stack(parse, count, &_if.rsp);  // 함수 내부에서 parse와 rsp의 값을 직접 변경하기 위해 주소 전달
 
     /* If load failed, quit. */
     palloc_free_page(file_name);
     if (!success)
         return -1;
 
-    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, 1);
+    // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, 1);
 
     /* Start switched process. */
     do_iret(&_if);
     NOT_REACHED();
 }
 
-void argument_stack(char **argv, int argc, struct intr_frame *if_) {
-    char *arg_addr[LOADER_ARGS_LEN];
-    int argv_len;
-
-    for (int i = argc - 1; i >= 0; i--) {
-        argv_len = strlen(argv[i]) + 1;
-        if_->rsp -= argv_len;
-        memcpy(if_->rsp, argv[i], argv_len);
-        arg_addr[i] = if_->rsp;
+void argument_stack(char **parse, int count, void **rsp)  // 주소를 전달받았으므로 이중 포인터 사용
+{
+    // 프로그램 이름, 인자 문자열 push
+    for (int i = count - 1; i > -1; i--) {
+        for (int j = strlen(parse[i]); j > -1; j--) {
+            (*rsp)--;                      // 스택 주소 감소
+            **(char **)rsp = parse[i][j];  // 주소에 문자 저장
+        }
+        parse[i] = *(char **)rsp;  // parse[i]에 현재 rsp의 값 저장해둠(지금 저장한 인자가 시작하는 주소값)
     }
 
-    while (!(if_->rsp % 8))
-        *(uint8_t *)(--if_->rsp);
-
-    for (int i = argc; i >= 0; i--) {
-        if_->rsp = if_->rsp - 8;
-        if (i == argc)
-            memset(if_->rsp, 0, sizeof(char *));
-        else
-            memcpy(if_->rsp, &arg_addr[i], sizeof(char *));
+    // 정렬 패딩 push
+    int padding = (int)*rsp % 8;
+    for (int i = 0; i < padding; i++) {
+        (*rsp)--;
+        **(uint8_t **)rsp = 0;  // rsp 직전까지 값 채움
     }
 
-    if_->rsp = if_->rsp - 8;
-    memset(if_->rsp, 0, sizeof(void *));
-    if_->R.rdi = argc;
-    if_->R.rsi = if_->rsp + 8;
+    // 인자 문자열 종료를 나타내는 0 push
+    (*rsp) -= 8;
+    **(char ***)rsp = 0;
+
+    // 각 인자 문자열의 주소 push
+    for (int i = count - 1; i > -1; i--) {
+        (*rsp) -= 8;  // 다음 주소로 이동
+        **(char ***)rsp = parse[i];
+    }
+
+    // return address push
+    (*rsp) -= 8;
+    **(void ***)rsp = 0;
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
