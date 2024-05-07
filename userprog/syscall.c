@@ -16,6 +16,7 @@ void check_address(void *uaddr);
 void halt(void);
 bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
+tid_t fork(const char *thread_name, struct intr_frame *f);
 
 /* System call.
  *
@@ -55,6 +56,7 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_FORK:
+            fork(f->R.rdi, f);
             break;
 
         case SYS_EXEC:
@@ -126,4 +128,8 @@ bool remove(const char *file) {
     check_address(file);
     bool is_success = filesys_remove(file);
     return is_success;
+}
+
+tid_t fork(const char *thread_name, struct intr_frame *f) {
+    return process_fork(thread_name, f);
 }

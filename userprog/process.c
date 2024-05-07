@@ -77,7 +77,18 @@ static void initd(void *f_name) {
  * TID_ERROR if the thread cannot be created. */
 tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED) {
     /* Clone current thread to new thread.*/
-    return thread_create(name, PRI_DEFAULT, __do_fork, thread_current());
+    struct thread *cur = thread_current();
+    memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
+
+    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, thread_current());
+
+    if (tid == TID_ERROR)
+        return TID_ERROR;
+
+    struct thread *child = get_child_process(tid);
+    sema_down(&child->load_sema);
+
+    return tid;
 }
 
 #ifndef VM
@@ -91,21 +102,31 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
     bool writable;
 
     /* 1. TODO: If the parent_page is kernel page, then return immediately. */
+    if (is_kernel_vaddr(va))
+        return true;
 
     /* 2. Resolve VA from the parent's page map level 4. */
     parent_page = pml4_get_page(parent->pml4, va);
+    if (parent_page == NULL)
+        return false;
 
     /* 3. TODO: Allocate new PAL_USER page for the child and set result to
      *    TODO: NEWPAGE. */
+    newpage = palloc_get_page(PAL_USER | PAL_ZERO);
+    if (newpage == NULL)
+        return false;
 
     /* 4. TODO: Duplicate parent's page to the new page and
      *    TODO: check whether parent's page is writable or not (set WRITABLE
      *    TODO: according to the result). */
+    memcpy(newpage, parent_page, PGSIZE);
+    writable = is_writable(pte);
 
     /* 5. Add new page to child's page table at address VA with WRITABLE
      *    permission. */
     if (!pml4_set_page(current->pml4, va, newpage, writable)) {
         /* 6. TODO: if fail to insert page, do error handling. */
+        return false;
     }
     return true;
 }
@@ -120,11 +141,13 @@ static void __do_fork(void *aux) {
     struct thread *parent = (struct thread *)aux;
     struct thread *current = thread_current();
     /* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-    struct intr_frame *parent_if;
+    struct intr_frame *parent_if = &parent->parent_if;
+
     bool succ = true;
 
     /* 1. Read the cpu context to local stack. */
     memcpy(&if_, parent_if, sizeof(struct intr_frame));
+    if_.R.rax = 0;  // 자식 프로세스의 리턴값은 0
 
     /* 2. Duplicate PT */
     current->pml4 = pml4_create();
@@ -146,6 +169,21 @@ static void __do_fork(void *aux) {
      * TODO:       in include/filesys/file.h. Note that parent should not return
      * TODO:       from the fork() until this function successfully duplicates
      * TODO:       the resources of parent.*/
+
+    for (int i = 0; i < FDT_COUNT_LIMIT; i++) {
+        struct file *file = parent->fdt[i];
+        if (file == NULL)
+            continue;
+        if (file > 2)
+            file = file_duplicate(file);
+        current->fdt[i] = file;
+    }
+
+    // next_fd도 복제
+    current->next_fd = parent->next_fd;
+
+    // 로드가 완료될 때까지 기다리고 있던 부모 대기 해제
+    sema_up(&current->load_sema);
 
     process_init();
 
@@ -208,7 +246,7 @@ void argument_stack(char **argv, int argc, struct intr_frame *if_) {
     }
 
     while (!(if_->rsp % 8))
-        *(uint8_t *)(--if_->rsp) = 0;
+        *(uint8_t *)(--if_->rsp);
 
     for (int i = argc; i >= 0; i--) {
         if_->rsp = if_->rsp - 8;
@@ -248,6 +286,8 @@ void process_exit(void) {
      * TODO: Implement process termination message (see
      * TODO: project2/process_termination.html).
      * TODO: We recommend you to implement process resource cleanup here. */
+
+    file_close(curr->running);  // 현재 실행 중인 파일을 닫는다.
 
     process_cleanup();
 }
@@ -427,6 +467,9 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         }
     }
 
+    t->running = file;
+    file_deny_write(file);
+
     /* Set up stack. */
     if (!setup_stack(if_))
         goto done;
@@ -441,8 +484,23 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
 done:
     /* We arrive here whether the load is successful or not. */
-    file_close(file);
+    // file_close(file);
     return success;
+}
+
+struct thread *get_child_process(int pid) {
+    /* 자식 리스트에 접근하여 프로세스 디스크립터 완전탐색 */
+    struct thread *cur = thread_current();
+    struct list *child_list = &cur->child_list;
+
+    for (struct list_elem *e = list_begin(child_list); e != list_end(child_list); e = list_next(e)) {
+        struct thread *t = list_entry(e, struct thread, child_elem);
+        /* 해당 pid가 존재하면 프로세스 디스크립터 반환 */
+        if (t->tid == pid)
+            return t;
+    }
+    /* 리스트에 존재하지 않으면 NULL 리턴 */
+    return NULL;
 }
 
 /* Checks whether PHDR describes a valid, loadable segment in

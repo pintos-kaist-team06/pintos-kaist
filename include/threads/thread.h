@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -27,6 +28,8 @@ typedef int tid_t;
 #define PRI_MIN 0      /* Lowest priority. */
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
+#define FDT_PAGES 2
+#define FDT_COUNT_LIMIT 128  // XXX: 128을 64로 하고싶어
 
 /* A kernel thread or user process.
  *
@@ -110,7 +113,19 @@ struct thread {
 
     /* Owned by thread.c. */
     struct intr_frame tf; /* Information for switching */
-    unsigned magic;       /* Detects stack overflow. */
+
+    struct intr_frame *parent_if;
+    struct list child_list;
+    struct list_elem child_elem;
+
+    struct file *running;  
+    
+    struct file **fdt;
+    int next_fd;
+
+    struct semaphore load_sema;
+
+    unsigned magic; /* Detects stack overflow. */
 };
 
 /* If false (default), use round-robin scheduler.
