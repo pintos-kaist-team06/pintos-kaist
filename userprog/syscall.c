@@ -20,6 +20,10 @@ bool remove(const char *file);
 tid_t fork(const char *thread_name, struct intr_frame *f);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
+int filesize(int fd);
+void close(int fd);
+int read(int fd, void *buffer, unsigned size);
+int write(int fd, const void *buffer, unsigned length);
 
 struct lock filesys_lock;
 
@@ -84,13 +88,15 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_FILESIZE:
+            f->R.rax = filesize(f->R.rdi);
             break;
 
         case SYS_READ:
+            f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
             break;
 
         case SYS_WRITE:
-            printf(f->R.rdi);
+            f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
             break;
 
         case SYS_SEEK:
@@ -181,4 +187,61 @@ void close(int fd) {
     struct file *file = process_get_file(fd);
     file_close(file);
     process_close_file(fd);
+}
+
+int filesize(int fd) {
+    struct file *file = process_get_file(fd);
+    if (file == NULL)
+        return -1;
+
+    return file_length(file);
+}
+
+int read(int fd, void *buffer, unsigned size) {
+    check_address(buffer);
+
+    char *ptr = (char *)buffer;
+    int bytes_read = 0;
+
+    lock_acquire(&filesys_lock);
+    if (fd == STDIN_FILENO) {
+        for (int i = 0; i < size; i++) {
+            *ptr++ = input_getc();
+            bytes_read++;
+        }
+        lock_release(&filesys_lock);
+    } else {
+        struct file *file = process_get_file(fd);
+        if (file == NULL) {
+            lock_release(&filesys_lock);
+            return -1;
+        }
+        bytes_read = file_read(file, buffer, size);
+        lock_release(&filesys_lock);
+    }
+    return bytes_read;
+}
+
+int write(int fd, const void *buffer, unsigned length) {
+    check_address(buffer);
+
+    char *ptr = (char *)buffer;
+    int bytes_write = 0;
+
+    lock_acquire(&filesys_lock);
+    if (fd == STDOUT_FILENO) {
+        putbuf(buffer, length);
+        lock_release(&filesys_lock);
+    }
+
+    else {
+        struct file *file = process_get_file(fd);
+        if (file == NULL) {
+            lock_release(&filesys_lock);
+            return -1;
+        }
+        bytes_write = file_write(file, buffer, length);
+        lock_release(&filesys_lock);
+    }
+    return bytes_write;
 }
