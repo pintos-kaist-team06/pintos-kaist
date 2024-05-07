@@ -102,6 +102,7 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_CLOSE:
+            close(f->R.rdi);
             break;
 
         default:
@@ -174,4 +175,10 @@ unsigned tell(int fd) {
         return -1;
 
     return file_tell(file);
+}
+
+void close(int fd) {
+    struct file *file = process_get_file(fd);
+    file_close(file);
+    process_close_file(fd);
 }
