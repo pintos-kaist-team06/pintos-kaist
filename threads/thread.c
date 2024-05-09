@@ -200,10 +200,11 @@ tid_t thread_create(const char *name, int priority, thread_func *function, void 
     t->tf.eflags = FLAG_IF;
 
     /*fork된 자식을 기다리기 위해 만든 리스트*/
+    // printf("내이름 %s\n 자식이름 %s\n", thread_name(), t->name);
+    // if (thread_name() != "main ")
     list_push_back(&thread_current()->child_list, &t->child_elem);
-    sema_init(&t->load_sema, 0);
 
-    t->fdt = palloc_get_multiple(PAL_ZERO, FDT_PAGES);  // XXX 이해안대
+    t->fdt = palloc_get_multiple(PAL_ZERO, FDT_PAGES);
     if (t->fdt == NULL)
         return TID_ERROR;
 
@@ -351,8 +352,10 @@ void thread_yield(void) {
 
 void test_max_priority() {
     struct thread *curr = thread_current();
+    if (curr == idle_thread)
+        return;
     struct thread *high_priority_ready_thread = list_entry(list_begin(&ready_list), struct thread, elem);
-    if (!intr_context() && curr->priority < high_priority_ready_thread->priority) {
+    if (!intr_context() && curr->priority < high_priority_ready_thread->priority) {  //
         thread_yield();
     }
 }
@@ -473,7 +476,7 @@ static void init_thread(struct thread *t, const char *name, int priority) {
     sema_init(&t->wait_sema, 0);
     sema_init(&t->exit_sema, 0);
 
-    t->next_fd = 3;  // XXX: 이거 3인가??
+    t->next_fd = 2;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

@@ -3,16 +3,22 @@
 #include <stdio.h>
 #include <syscall-nr.h>
 
+#include "devices/input.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
 #include "intrinsic.h"
+#include "lib/kernel/stdio.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/loader.h"
+#include "threads/palloc.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "userprog/gdt.h"
+#include "userprog/process.h"
 
 void syscall_entry(void);
-void syscall_handler(struct intr_frame *);
+void syscall_handler(struct intr_frame *f UNUSED);
 void check_address(void *uaddr);
 void halt(void);
 bool create(const char *file, unsigned initial_size);
@@ -25,7 +31,9 @@ void close(int fd);
 int read(int fd, void *buffer, unsigned size);
 int write(int fd, const void *buffer, unsigned length);
 int exec(const char *file);
-int wait(pid_t) ;
+int wait(pid_t);
+int open(const char *file);
+void exit(int status);
 
 struct lock filesys_lock;
 
@@ -55,7 +63,6 @@ void syscall_init(void) {
 
 /* The main system call interface */
 void syscall_handler(struct intr_frame *f UNUSED) {
-    // check_address(f->R.rax);  // 임시
     uint64_t syscall_n = f->R.rax;
     switch (syscall_n) {
         case SYS_HALT:
@@ -67,6 +74,7 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_FORK:
+            memcpy(&thread_current()->parent_if, f, sizeof(struct intr_frame));
             f->R.rax = fork(f->R.rdi);
             break;
 
@@ -195,28 +203,29 @@ int wait(pid_t) {
 }
 
 tid_t fork(const char *thread_name) {
-    struct intr_frame f = thread_current()->tf;
-    return process_fork(thread_name, f);
+    return process_fork(thread_name, &thread_current()->parent_if);
 }
 
 void seek(int fd, unsigned position) {
     struct file *file = process_get_file(fd);
     if (file == NULL)
-        return -1;
+        return;
 
-    file_seek(process_get_file(file), position);
+    file_seek(file, position);
 }
 
 unsigned tell(int fd) {
     struct file *file = process_get_file(fd);
     if (file == NULL)
-        return -1;
+        return;
 
     return file_tell(file);
 }
 
 void close(int fd) {
     struct file *file = process_get_file(fd);
+    if (file == NULL)
+        return;
     file_close(file);
     process_close_file(fd);
 }

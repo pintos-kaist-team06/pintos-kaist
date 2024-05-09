@@ -77,18 +77,27 @@ static void initd(void *f_name) {
  * TID_ERROR if the thread cannot be created. */
 tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED) {
     /* Clone current thread to new thread.*/
+    // 현재 스레드의 parent_if에 복제해야 하는 if를 복사한다.
     struct thread *cur = thread_current();
-    memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
 
-    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, thread_current());
-
-    if (tid == TID_ERROR)
+    // 현재 스레드를 fork한 new 스레드를 생성한다.
+    tid_t pid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
+    if (pid == TID_ERROR)
         return TID_ERROR;
 
-    struct thread *child = get_child_process(tid);
+
+    struct thread *child = get_child_process(pid);
+
     sema_down(&child->load_sema);
 
-    return tid;
+    // 자식이 로드되다가 오류로 exit한 경우
+    if (child->exit_status < 0) {
+        sema_up(&child->exit_sema);
+        return TID_ERROR;
+    }
+
+    // 자식 프로세스의 pid를 반환한다.
+    return pid;
 }
 
 #ifndef VM
@@ -191,6 +200,7 @@ static void __do_fork(void *aux) {
     if (succ)
         do_iret(&if_);
 error:
+    // sema_up(&current->load_sema);
     thread_exit();
 }
 
@@ -305,7 +315,8 @@ void process_exit(void) {
     for (int i = 2; i < FDT_COUNT_LIMIT; i++)
         close(i);
 
-    palloc_free_page(cur->fdt);
+    // palloc_free_page(cur->fdt);
+    palloc_free_multiple(cur->fdt, FDT_PAGES);
     file_close(cur->running);  // 2) 현재 실행 중인 파일도 닫는다.
 
     process_cleanup();
@@ -515,8 +526,8 @@ done:
 
 struct thread *get_child_process(int pid) {
     /* 자식 리스트에 접근하여 프로세스 디스크립터 완전탐색 */
-    struct thread *cur = thread_current();
-    struct list *child_list = &cur->child_list;
+    struct thread *curr = thread_current();
+    struct list *child_list = &curr->child_list;
 
     for (struct list_elem *e = list_begin(child_list); e != list_end(child_list); e = list_next(e)) {
         struct thread *t = list_entry(e, struct thread, child_elem);
@@ -657,7 +668,7 @@ struct file *process_get_file(int fd) {
 
     /* 파일 디스크립터에 해당하는 파일 객체를 리턴 */
     /* 없을 시 NULL 리턴 */
-    if (fd < 2 || fd >= FDT_COUNT_LIMIT)  // XXX
+    if (fd < 2 || fd >= FDT_COUNT_LIMIT)
         return NULL;
     return fdt[fd];
 }
@@ -666,7 +677,7 @@ struct file *process_get_file(int fd) {
 void process_close_file(int fd) {
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
-    if (fd < 2 || fd >= FDT_COUNT_LIMIT)  // XXX
+    if (fd < 2 || fd >= FDT_COUNT_LIMIT)
         return NULL;
 
     fdt[fd] = NULL;

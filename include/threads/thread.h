@@ -22,14 +22,33 @@ enum thread_status {
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
-#define TID_ERROR ((tid_t)-1) /* Error value for tid_t. */
+#define TID_ERROR ((tid_t) - 1) /* Error value for tid_t. */
 
 /* Thread priorities. */
+/* input: pintos -v -k -T 300  -m 20   --fs-disk=10 -p tests/userprog/no-vm/multi-oom:multi-oom -- -q   -f run multi-oom < /dev/null 2> tests/userprog/no-vm/multi-oom.errors >
+ * tests/userprog/no-vm/multi-oom.output*/
+/* page, limit =
+                 P(1, 48): OOM Success but *Exception: 1628 page faults
+                 P(1, 64): OOM Success but *Exception: 1870 page faults
+                 P(2, 32): OOM Success but *Exception: 1628 page faults
+                 P(3, 16): OOM Success but *Exception: 198 page faults
+                 P(3, 48): OOM Success but *Exception: 1518 page faults
+                 P(48, 3): OOM Success but *Exception: 264 page faults
+                 P(60, 3): OOM Success but *Exception: 198 page faults
+                 P(100,3)
+
+                 P(600,4, m=200MB)
+
+                 F(1, 128): child_210_X: exit(-1) //TIMEOUT
+                 F(4, 8)
+                 F(100,1): child_0_O: exit(1) //!spawned at least 10 children
+                 F(600,4, m=120MB): //!spawned at least 10 children */
+
 #define PRI_MIN 0      /* Lowest priority. */
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
-#define FDT_PAGES 2
-#define FDT_COUNT_LIMIT 128  // XXX: 128을 64로 하고싶어
+#define FDT_PAGES 3    
+#define FDT_COUNT_LIMIT 16
 
 /* A kernel thread or user process.
  *
@@ -114,7 +133,7 @@ struct thread {
     /* Owned by thread.c. */
     struct intr_frame tf; /* Information for switching */
 
-    struct intr_frame *parent_if;
+    struct intr_frame parent_if;
     struct list child_list;
     struct list_elem child_elem;
 
